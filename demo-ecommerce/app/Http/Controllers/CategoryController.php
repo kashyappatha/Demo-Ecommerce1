@@ -4,6 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use DataTables;
+use  Illuminate\Database\Eloquent\Collection;
+// use  Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\File;
+
+
 
 class CategoryController extends Controller
 {
@@ -17,12 +24,7 @@ class CategoryController extends Controller
     // }
     public function index(Request $request)
 {
-    $category = Category::orderBy('created_at', 'DESC')->get();
-    // $category = Category::find(1);
-
-    return view('categories.index', compact('category'));
-
-    // $category = Category::query();
+    $category = Category::orderBy('created_at', 'DESC');
 
     if ($request->has('search')) {
         $search = $request->search;
@@ -31,9 +33,8 @@ class CategoryController extends Controller
 
     $category = $category->paginate(10);
 
-    // return view('categories.index', compact('category'));
+    return view('categories.index', compact('category'));
 }
-
 
     public function create()
     {
@@ -82,21 +83,41 @@ class CategoryController extends Controller
 
         return redirect()->route('categories')->with('success', 'category deleted successfully');
     }
+
     public function search(Request $request)
     {
         $search = $request->input('search');
-        $categoryId = $request->input('id');
 
-        // Perform search query based on the provided search term and category ID
+        $query = Category::query();
 
-        // Example code:
-        $results = Category::where('id', $categoryId)
-                            ->where('category', 'like', '%'.$search.'%')
-                            ->get();
+        if ($search) {
+            $query->where('category', 'like', '%' . $search . '%');
+        }
 
-        // Pass the search results to the view
-        return view('search_results', compact('results'));
+        $categories = $query->paginate(10);
+
+        return view('categories.search_results', compact('categories'));
     }
 
+public function deleteImage($id)
+{
+    $category = Category::findOrFail($id);
+
+    if ($category->image) {
+        // Delete the image file from the server
+        $imagePath = public_path('admin_assets/img/' . $category->image);
+        if (File::exists($imagePath)) {
+            File::delete($imagePath);
+        }
+
+        // Clear the image field in the category record
+        $category->image = null;
+        $category->save();
+
+        return response()->json(['success' => true]);
+    }
+
+    return response()->json(['success' => false]);
+}
 
 }
